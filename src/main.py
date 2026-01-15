@@ -17,6 +17,31 @@ from summarizer import create_summarizer
 from telegram_sender import send_telegram_message
 from daily_fetch import download_boe_xml, DOWNLOAD_DIR
 
+# Directory to cache generated summaries
+CACHE_DIR = Path("cache")
+
+
+def get_cache_path(file_path: str) -> Path:
+    """Get the cache file path for a given input file."""
+    CACHE_DIR.mkdir(exist_ok=True)
+    input_name = Path(file_path).stem
+    return CACHE_DIR / f"{input_name}_summary.txt"
+
+
+def load_cached_summary(file_path: str) -> str | None:
+    """Load cached summary if it exists."""
+    cache_path = get_cache_path(file_path)
+    if cache_path.exists():
+        return cache_path.read_text(encoding="utf-8")
+    return None
+
+
+def save_summary_to_cache(file_path: str, summary: str) -> None:
+    """Save summary to cache."""
+    cache_path = get_cache_path(file_path)
+    cache_path.write_text(summary, encoding="utf-8")
+    print(f"   Cached summary to {cache_path}")
+
 
 def load_config() -> dict[str, str]:
     """
@@ -54,16 +79,26 @@ def process_file(file_path: str) -> None:
     # Load configuration
     config = load_config()
 
-    # Step 1: Extract text from file
-    print("📖 Extracting text...")
-    text = extract_text(file_path)
-    print(f"   Extracted {len(text)} characters")
+    # Check for cached summary first
+    cached_summary = load_cached_summary(file_path)
+    if cached_summary:
+        print("📦 Using cached summary...")
+        summary = cached_summary
+        print(f"   Loaded summary ({len(summary)} characters)")
+    else:
+        # Step 1: Extract text from file
+        print("📖 Extracting text...")
+        text = extract_text(file_path)
+        print(f"   Extracted {len(text)} characters")
 
-    # Step 2: Summarize the text
-    print("🤖 Generating summary...")
-    summarizer = create_summarizer(config["MODEL_API_KEY"], model_type="gemini")
-    summary = summarizer.summarize(text)
-    print(f"   Generated summary ({len(summary)} characters)")
+        # Step 2: Summarize the text
+        print("🤖 Generating summary...")
+        summarizer = create_summarizer(config["MODEL_API_KEY"], model_type="gemini")
+        summary = summarizer.summarize(text)
+        print(f"   Generated summary ({len(summary)} characters)")
+
+        # Cache the summary for future use
+        save_summary_to_cache(file_path, summary)
 
     # Step 3: Send via Telegram
     print("📤 Sending to Telegram...")
@@ -74,41 +109,17 @@ def process_file(file_path: str) -> None:
     )
     print("✅ Summary sent successfully!")
 
-
-def fetch_daily_xml() -> Path:
-    """
-    Fetch today's BOE XML using daily_fetch and return the file path.
-
-    Returns:
-        Path to the downloaded XML file.
-
-    Raises:
-        RuntimeError: If the download fails or file is not found.
-    """
-    print("🌐 No file provided, fetching today's BOE XML...")
-    download_boe_xml()
-
-    today_str = datetime.now().strftime("%Y%m%d")
-    file_path = DOWNLOAD_DIR / f"boe_{today_str}.xml"
-
-    if not file_path.exists():
-        raise RuntimeError(
-            f"Failed to download BOE XML. File not found: {file_path}"
-        )
-
-    return file_path
-
-
 def main() -> None:
     """Main entry point."""
     if len(sys.argv) < 2:
         # No file provided - fetch today's BOE XML
-        try:
-            file_path = fetch_daily_xml()
-            process_file(str(file_path))
-        except Exception as e:
-            print(f"❌ Error: {e}")
+        
+        file_path = download_boe_xml()
+        if file_path is None:
+            print("Error: Failed to download today's BOE XML.")
             sys.exit(1)
+
+        process_file(str(file_path))
     else:
         file_path = sys.argv[1]
 
