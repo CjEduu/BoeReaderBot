@@ -84,8 +84,6 @@ class GeminiSummarizer(BaseSummarizer):
                     system_instruction = self.system_prompt,
                 ),
             )
-
-            print(response.text)
             return response.text
 
         except Exception as e:

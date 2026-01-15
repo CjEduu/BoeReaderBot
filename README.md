@@ -1,0 +1,1 @@
+Shitty VibeCoded bot for personal use. I want to be informed !
