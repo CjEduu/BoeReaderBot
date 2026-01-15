@@ -10,7 +10,7 @@ def send_telegram_message(
     bot_token: str,
     chat_id: str,
     message: str,
-    parse_mode: str = "Markdown",
+    parse_mode: str = "MarkdownV2",
 ) -> bool:
     """
     Send a message via Telegram Bot API.

@@ -109,12 +109,12 @@ async def summary_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     try:
         summary = get_daily_summary()
         if summary:
-            # Send in chunks if needed (Telegram 4096 char limit)
-            if len(summary) > 4096:
-                for i in range(0, len(summary), 4096):
-                    await update.message.reply_text(summary[i:i+4096])
-            else:
-                await update.message.reply_text(summary)
+            await send_telegram_message(
+                bot_token=get_bot_token(),
+                chat_id=str(update.effective_chat.id),
+                message=summary,
+                parse_mode="MarkdownV2"
+            )
         else:
             await update.message.reply_text(
                 "❌ No se pudo obtener el resumen.\n"
@@ -143,17 +143,12 @@ async def send_daily_summary(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         for chat_id in subscribers:
             try:
-                if len(summary) > 4096:
-                    for i in range(0, len(summary), 4096):
-                        await context.bot.send_message(
-                            chat_id=chat_id,
-                            text=summary[i:i+4096]
-                        )
-                else:
-                    await context.bot.send_message(
-                        chat_id=chat_id,
-                        text=summary
-                    )
+                await send_telegram_message(
+                    bot_token=get_bot_token(),
+                    chat_id=str(chat_id),
+                    message=summary,
+                    parse_mode="MarkdownV2"
+                )
                 print(f"   ✅ Sent to {chat_id}")
             except Exception as e:
                 print(f"   ❌ Failed to send to {chat_id}: {e}")
