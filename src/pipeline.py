@@ -120,7 +120,7 @@ def process_file(file_path: str, force_refresh: bool = False) -> str:
 
 if __name__ == "__main__":
     # Quick test: fetch and summarize today's BOE
-    summary = get_daily_summary()
+    summary = get_daily_summary(force_refresh=True)
     if summary:
         print("\n" + "=" * 50)
         print(summary)
