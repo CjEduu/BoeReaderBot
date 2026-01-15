@@ -2,11 +2,12 @@
 BOE Resumer - Document summarization pipeline with Telegram delivery.
 
 This script orchestrates the flow: Load File → Extract → Summarize → Send.
-Supports PDF and XML files.
+Supports PDF and XML files. When run without arguments, fetches today's BOE XML.
 """
 
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -14,6 +15,7 @@ from dotenv import load_dotenv
 from text_extractor import extract_text, SUPPORTED_EXTENSIONS
 from summarizer import create_summarizer
 from telegram_sender import send_telegram_message
+from daily_fetch import download_boe_xml, DOWNLOAD_DIR
 
 
 def load_config() -> dict[str, str]:
@@ -73,27 +75,52 @@ def process_file(file_path: str) -> None:
     print("✅ Summary sent successfully!")
 
 
+def fetch_daily_xml() -> Path:
+    """
+    Fetch today's BOE XML using daily_fetch and return the file path.
+
+    Returns:
+        Path to the downloaded XML file.
+
+    Raises:
+        RuntimeError: If the download fails or file is not found.
+    """
+    print("🌐 No file provided, fetching today's BOE XML...")
+    download_boe_xml()
+
+    today_str = datetime.now().strftime("%Y%m%d")
+    file_path = DOWNLOAD_DIR / f"boe_{today_str}.xml"
+
+    if not file_path.exists():
+        raise RuntimeError(
+            f"Failed to download BOE XML. File not found: {file_path}"
+        )
+
+    return file_path
+
+
 def main() -> None:
     """Main entry point."""
     if len(sys.argv) < 2:
-        extensions = ", ".join(SUPPORTED_EXTENSIONS)
-        print(f"Usage: python main.py <file_path>")
-        print(f"Supported formats: {extensions}")
-        print("Example: python main.py document.pdf")
-        print("Example: python main.py data.xml")
-        sys.exit(1)
+        # No file provided - fetch today's BOE XML
+        try:
+            file_path = fetch_daily_xml()
+            process_file(str(file_path))
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            sys.exit(1)
+    else:
+        file_path = sys.argv[1]
 
-    file_path = sys.argv[1]
+        if not Path(file_path).exists():
+            print(f"Error: File not found: {file_path}")
+            sys.exit(1)
 
-    if not Path(file_path).exists():
-        print(f"Error: File not found: {file_path}")
-        sys.exit(1)
-
-    try:
-        process_file(file_path)
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        sys.exit(1)
+        try:
+            process_file(file_path)
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            sys.exit(1)
 
 
 if __name__ == "__main__":
