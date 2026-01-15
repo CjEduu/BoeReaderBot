@@ -6,18 +6,33 @@ from pathlib import Path
 # Config
 BASE_URL = "https://www.boe.es/datosabiertos/api/boe/sumario/"
 DOWNLOAD_DIR = Path("downloads")
-STATUS_FILE = Path(".last_run")
+CACHE_DIR = Path("cache")
+
+
+def _get_today_cache_path() -> Path:
+    """Get the cache path for today's summary."""
+    today_str = datetime.now().strftime("%Y%m%d")
+    return CACHE_DIR / f"boe_{today_str}_summary.txt"
+
+
+def _is_summary_cached() -> bool:
+    """Check if today's summary is already cached."""
+    return _get_today_cache_path().exists()
+
 
 def download_boe_xml() -> Path | None:
     today_str = datetime.now().strftime("%Y%m%d")
-    
-    if STATUS_FILE.exists() and STATUS_FILE.read_text().strip() == today_str:
-        print(f"Already processed for {today_str}. Skipping.")
-        return Path(DOWNLOAD_DIR / f"boe_{today_str}.xml")
+    file_path = DOWNLOAD_DIR / f"boe_{today_str}.xml"
+
+    # Skip download if summary is already cached
+    if _is_summary_cached():
+        print(f"Summary for {today_str} already cached. Skipping download.")
+        # Return existing XML if it exists, otherwise we still need it
+        if file_path.exists():
+            return file_path
 
     DOWNLOAD_DIR.mkdir(exist_ok=True)
     url = f"{BASE_URL}{today_str}"
-    file_path = DOWNLOAD_DIR / f"boe_{today_str}.xml"
 
     # The BOE API requires a specific Accept header
     headers = {
@@ -39,7 +54,6 @@ def download_boe_xml() -> Path | None:
             response.raise_for_status()
             file_path.write_bytes(response.content)
             
-        STATUS_FILE.write_text(today_str)
         print(f"✅ Saved to {file_path}")
         
     except httpx.HTTPStatusError as e:
