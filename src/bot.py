@@ -113,7 +113,7 @@ async def summary_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 bot_token=get_bot_token(),
                 chat_id=str(update.effective_chat.id),
                 message=summary,
-                parse_mode="MarkdownV2"
+                parse_mode="Markdown"
             )
         else:
             await update.message.reply_text(
@@ -121,7 +121,7 @@ async def summary_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 "El BOE de hoy puede no estar disponible todavía."
             )
     except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
+        print(f"❌ Error: {e}")
 
 
 async def send_daily_summary(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -147,7 +147,7 @@ async def send_daily_summary(context: ContextTypes.DEFAULT_TYPE) -> None:
                     bot_token=get_bot_token(),
                     chat_id=str(chat_id),
                     message=summary,
-                    parse_mode="MarkdownV2"
+                    parse_mode="Markdown"
                 )
                 print(f"   ✅ Sent to {chat_id}")
             except Exception as e:
