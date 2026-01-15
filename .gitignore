@@ -15,3 +15,6 @@ wheels/
 # Downloaded files and cache
 downloads/
 cache/
+
+# Bot data
+data/

@@ -8,12 +8,12 @@ BASE_URL = "https://www.boe.es/datosabiertos/api/boe/sumario/"
 DOWNLOAD_DIR = Path("downloads")
 STATUS_FILE = Path(".last_run")
 
-def download_boe_xml():
+def download_boe_xml() -> Path | None:
     today_str = datetime.now().strftime("%Y%m%d")
     
     if STATUS_FILE.exists() and STATUS_FILE.read_text().strip() == today_str:
         print(f"Already processed for {today_str}. Skipping.")
-        return
+        return Path(DOWNLOAD_DIR / f"boe_{today_str}.xml")
 
     DOWNLOAD_DIR.mkdir(exist_ok=True)
     url = f"{BASE_URL}{today_str}"
@@ -34,7 +34,7 @@ def download_boe_xml():
             # If it's still 400, it might be that the summary isn't out yet
             if response.status_code == 400:
                 print("⚠️ API returned 400. The summary might not be published yet (usually available by 08:00-09:00).")
-                return
+                return None
 
             response.raise_for_status()
             file_path.write_bytes(response.content)
@@ -44,8 +44,12 @@ def download_boe_xml():
         
     except httpx.HTTPStatusError as e:
         print(f"❌ HTTP Error: {e.response.status_code} - {e.response.text}")
+        return None
     except Exception as e:
         print(f"❌ Error: {e}")
+        return None
+
+    return Path(file_path)
 
 if __name__ == "__main__":
     download_boe_xml()

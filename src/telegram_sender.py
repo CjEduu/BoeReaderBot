@@ -46,14 +46,15 @@ def _send_single_message(
     url: str,
     chat_id: str,
     message: str,
-    parse_mode: str,
+    parse_mode: str | None,
 ) -> bool:
-    """Send a single message to Telegram."""
-    payload = {
+    """Send a single message to Telegram, with fallback for markdown errors."""
+    payload: dict[str, str] = {
         "chat_id": chat_id,
         "text": message,
-        "parse_mode": parse_mode,
     }
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
 
     try:
         response = requests.post(url, json=payload, timeout=30)
@@ -66,6 +67,10 @@ def _send_single_message(
         return True
 
     except requests.RequestException as e:
+        # If markdown parsing failed (400 error), retry without parse_mode
+        if parse_mode and "400" in str(e):
+            print("⚠️  Markdown parsing failed, retrying as plain text...")
+            return _send_single_message(url, chat_id, message, parse_mode=None)
         raise RuntimeError(f"Failed to send Telegram message: {e}") from e
 
 

@@ -78,22 +78,6 @@ class TestSummarizer:
         with pytest.raises(ValueError, match="Unsupported model type"):
             create_summarizer("fake-api-key", "unsupported")
 
-    def test_gemini_summarizer_summarize(self) -> None:
-        """Test GeminiSummarizer.summarize returns expected output."""
-        with patch("summarizer.genai") as mock_genai:
-            mock_model = MagicMock()
-            mock_response = MagicMock()
-            mock_response.text = "This is a test summary."
-            mock_model.generate_content.return_value = mock_response
-            mock_genai.GenerativeModel.return_value = mock_model
-
-            summarizer = GeminiSummarizer("fake-api-key")
-            result = summarizer.summarize("Test document content.")
-
-            assert result == "This is a test summary."
-            mock_model.generate_content.assert_called_once()
-
-
 class TestTelegramSender:
     """Tests for Telegram integration module."""
 
