@@ -9,7 +9,6 @@ Features:
 """
 
 import asyncio
-import json
 import os
 from datetime import time
 from pathlib import Path
@@ -24,28 +23,13 @@ from telegram.ext import (
 
 from pipeline import get_daily_summary
 from telegram_sender import send_telegram_message
-
-# File to store registered users
-SUBSCRIBERS_FILE = Path("data/subscribers.json")
-
-
-def load_subscribers() -> set[int]:
-    """Load registered subscriber chat IDs."""
-    if SUBSCRIBERS_FILE.exists():
-        data = json.loads(SUBSCRIBERS_FILE.read_text())
-        return set(data.get("subscribers", []))
-    return set()
-
-
-def save_subscribers(subscribers: set[int]) -> None:
-    """Save registered subscriber chat IDs."""
-    SUBSCRIBERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    data = {"subscribers": list(subscribers)}
-    SUBSCRIBERS_FILE.write_text(json.dumps(data, indent=2))
-
-
-# Global subscribers set
-subscribers: set[int] = load_subscribers()
+from storage import (
+    load_subscribers,
+    add_subscriber,
+    remove_subscriber,
+    is_subscriber,
+    get_subscriber_count,
+)
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -64,15 +48,14 @@ async def register_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     """Handle /register command - subscribe user to daily updates."""
     chat_id = update.effective_chat.id
 
-    if chat_id in subscribers:
+    if is_subscriber(chat_id):
         await update.message.reply_text(
             "✅ Ya estás suscrito al resumen diario del BOE.\n"
             "Recibirás el resumen cada día a las 10:00 AM."
         )
         return
 
-    subscribers.add(chat_id)
-    save_subscribers(subscribers)
+    add_subscriber(chat_id)
 
     await update.message.reply_text(
         "🎉 ¡Te has suscrito correctamente!\n\n"
@@ -86,15 +69,14 @@ async def unregister_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Handle /unregister command - unsubscribe user from daily updates."""
     chat_id = update.effective_chat.id
 
-    if chat_id not in subscribers:
+    if not is_subscriber(chat_id):
         await update.message.reply_text(
             "ℹ️ No estás suscrito actualmente.\n"
             "Usa /register para suscribirte."
         )
         return
 
-    subscribers.discard(chat_id)
-    save_subscribers(subscribers)
+    remove_subscriber(chat_id)
 
     await update.message.reply_text(
         "👋 Te has dado de baja correctamente.\n"
@@ -108,7 +90,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """Handle /status command - show subscription status."""
     chat_id = update.effective_chat.id
 
-    if chat_id in subscribers:
+    if is_subscriber(chat_id):
         await update.message.reply_text(
             "✅ Estás suscrito al resumen diario.\n"
             "📅 Hora de envío: 10:00 AM"
@@ -146,6 +128,7 @@ async def send_daily_summary(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Scheduled job: send daily summary to all subscribers."""
     print("🕐 Running scheduled daily summary...")
 
+    subscribers = load_subscribers()
     if not subscribers:
         print("   No subscribers to notify")
         return
@@ -158,7 +141,7 @@ async def send_daily_summary(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         print(f"   Sending to {len(subscribers)} subscribers...")
 
-        for chat_id in subscribers.copy():
+        for chat_id in subscribers:
             try:
                 if len(summary) > 4096:
                     for i in range(0, len(summary), 4096):
@@ -213,7 +196,7 @@ def run_bot() -> None:
     )
     print("📅 Scheduled daily summary at 10:00 AM")
 
-    print(f"📊 Current subscribers: {len(subscribers)}")
+    print(f"📊 Current subscribers: {get_subscriber_count()}")
     print("✅ Bot is running. Press Ctrl+C to stop.")
 
     # Run the bot
