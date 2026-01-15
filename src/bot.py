@@ -113,7 +113,7 @@ async def summary_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 bot_token=get_bot_token(),
                 chat_id=str(update.effective_chat.id),
                 message=summary,
-                parse_mode="Markdown"
+                parse_mode="MarkdownV2"
             )
         else:
             await update.message.reply_text(
@@ -147,7 +147,7 @@ async def send_daily_summary(context: ContextTypes.DEFAULT_TYPE) -> None:
                     bot_token=get_bot_token(),
                     chat_id=str(chat_id),
                     message=summary,
-                    parse_mode="Markdown"
+                    parse_mode="MarkdownV2"
                 )
                 print(f"   ✅ Sent to {chat_id}")
             except Exception as e:
