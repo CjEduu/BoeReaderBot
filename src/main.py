@@ -1,7 +1,8 @@
 """
-BOE Resumer - PDF summarization pipeline with Telegram delivery.
+BOE Resumer - Document summarization pipeline with Telegram delivery.
 
-This script orchestrates the flow: Load PDF → Extract → Summarize → Send.
+This script orchestrates the flow: Load File → Extract → Summarize → Send.
+Supports PDF and XML files.
 """
 
 import os
@@ -10,7 +11,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from pdf_extractor import extract_text_from_pdf
+from text_extractor import extract_text, SUPPORTED_EXTENSIONS
 from summarizer import create_summarizer
 from telegram_sender import send_telegram_message
 
@@ -39,21 +40,21 @@ def load_config() -> dict[str, str]:
     return config
 
 
-def process_pdf(pdf_path: str) -> None:
+def process_file(file_path: str) -> None:
     """
-    Process a PDF file: extract, summarize, and send via Telegram.
+    Process a file: extract text, summarize, and send via Telegram.
 
     Args:
-        pdf_path: Path to the PDF file to process.
+        file_path: Path to the file to process (PDF or XML).
     """
-    print(f"📄 Loading PDF: {pdf_path}")
+    print(f"📄 Loading file: {file_path}")
 
     # Load configuration
     config = load_config()
 
-    # Step 1: Extract text from PDF
-    print("📖 Extracting text from PDF...")
-    text = extract_text_from_pdf(pdf_path)
+    # Step 1: Extract text from file
+    print("📖 Extracting text...")
+    text = extract_text(file_path)
     print(f"   Extracted {len(text)} characters")
 
     # Step 2: Summarize the text
@@ -75,18 +76,21 @@ def process_pdf(pdf_path: str) -> None:
 def main() -> None:
     """Main entry point."""
     if len(sys.argv) < 2:
-        print("Usage: python main.py <pdf_path>")
+        extensions = ", ".join(SUPPORTED_EXTENSIONS)
+        print(f"Usage: python main.py <file_path>")
+        print(f"Supported formats: {extensions}")
         print("Example: python main.py document.pdf")
+        print("Example: python main.py data.xml")
         sys.exit(1)
 
-    pdf_path = sys.argv[1]
+    file_path = sys.argv[1]
 
-    if not Path(pdf_path).exists():
-        print(f"Error: File not found: {pdf_path}")
+    if not Path(file_path).exists():
+        print(f"Error: File not found: {file_path}")
         sys.exit(1)
 
     try:
-        process_pdf(pdf_path)
+        process_file(file_path)
     except Exception as e:
         print(f"❌ Error: {e}")
         sys.exit(1)

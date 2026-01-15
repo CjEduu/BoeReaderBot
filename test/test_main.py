@@ -9,26 +9,54 @@ import pytest
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pdf_extractor import extract_text_from_pdf
+from text_extractor import extract_text, SUPPORTED_EXTENSIONS
 from summarizer import BaseSummarizer, GeminiSummarizer, create_summarizer
 from telegram_sender import send_telegram_message, _split_message
 
 
-class TestPDFExtractor:
-    """Tests for PDF extraction module."""
+class TestTextExtractor:
+    """Tests for text extraction module."""
 
     def test_extract_text_file_not_found(self) -> None:
         """Test that FileNotFoundError is raised for missing files."""
         with pytest.raises(FileNotFoundError):
-            extract_text_from_pdf("/nonexistent/path/file.pdf")
+            extract_text("/nonexistent/path/file.pdf")
 
-    def test_extract_text_invalid_extension(self, tmp_path: Path) -> None:
-        """Test that ValueError is raised for non-PDF files."""
+    def test_extract_text_unsupported_extension(self, tmp_path: Path) -> None:
+        """Test that ValueError is raised for unsupported file types."""
         txt_file = tmp_path / "test.txt"
-        txt_file.write_text("Not a PDF")
+        txt_file.write_text("Not supported")
 
-        with pytest.raises(ValueError, match="not a PDF"):
-            extract_text_from_pdf(txt_file)
+        with pytest.raises(ValueError, match="Unsupported file type"):
+            extract_text(txt_file)
+
+    def test_supported_extensions_includes_pdf_and_xml(self) -> None:
+        """Test that both PDF and XML are in supported extensions."""
+        assert ".pdf" in SUPPORTED_EXTENSIONS
+        assert ".xml" in SUPPORTED_EXTENSIONS
+
+    def test_extract_text_from_xml(self, tmp_path: Path) -> None:
+        """Test XML text extraction."""
+        xml_content = """<?xml version="1.0" encoding="UTF-8"?>
+<document>
+    <title>Test Document</title>
+    <content>This is test content.</content>
+</document>"""
+        xml_file = tmp_path / "test.xml"
+        xml_file.write_text(xml_content)
+
+        result = extract_text(xml_file)
+
+        assert "Test Document" in result
+        assert "This is test content." in result
+
+    def test_extract_text_from_empty_xml(self, tmp_path: Path) -> None:
+        """Test that ValueError is raised for empty XML files."""
+        xml_file = tmp_path / "empty.xml"
+        xml_file.write_text("   ")
+
+        with pytest.raises(ValueError, match="XML file is empty"):
+            extract_text(xml_file)
 
 
 class TestSummarizer:
@@ -118,12 +146,12 @@ class TestTyping:
     """Tests for type annotations."""
 
     def test_extract_text_accepts_path_object(self, tmp_path: Path) -> None:
-        """Test that extract_text_from_pdf accepts Path objects."""
+        """Test that extract_text accepts Path objects."""
         # This tests the Union[str, Path] type hint
         pdf_path = tmp_path / "test.pdf"
         # File doesn't exist, but we're testing the type acceptance
         with pytest.raises(FileNotFoundError):
-            extract_text_from_pdf(pdf_path)
+            extract_text(pdf_path)
 
     def test_summarizer_type_hint(self) -> None:
         """Test that summarizer factory returns correct type."""
