@@ -1,11 +1,12 @@
 """Summarization module with interchangeable model support."""
 
+import os
 from abc import ABC, abstractmethod
 
 import google.generativeai as genai
 
 
-SYSTEM_PROMPT = """You are a document summarizer. Create a concise summary of the provided text.
+DEFAULT_SYSTEM_PROMPT = """You are a document summarizer. Create a concise summary of the provided text.
 
 Requirements:
 - Keep the summary brief and scannable for mobile reading
@@ -15,6 +16,11 @@ Requirements:
 - Maximum 500 words
 - Write in the same language as the source document
 """
+
+
+def get_system_prompt() -> str:
+    """Get system prompt from environment or use default."""
+    return os.getenv("SYSTEM_PROMPT", DEFAULT_SYSTEM_PROMPT)
 
 
 class BaseSummarizer(ABC):
@@ -37,18 +43,25 @@ class BaseSummarizer(ABC):
 class GeminiSummarizer(BaseSummarizer):
     """Summarizer using Google's Gemini API."""
 
-    def __init__(self, api_key: str, model_name: str = "gemini-1.5-flash") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model_name: str = "gemini-1.5-flash",
+        system_prompt: str | None = None,
+    ) -> None:
         """
         Initialize the Gemini summarizer.
 
         Args:
             api_key: Google AI API key.
             model_name: The Gemini model to use.
+            system_prompt: Custom system prompt (uses env/default if None).
         """
         genai.configure(api_key=api_key)
+        prompt = system_prompt if system_prompt is not None else get_system_prompt()
         self.model = genai.GenerativeModel(
             model_name=model_name,
-            system_instruction=SYSTEM_PROMPT,
+            system_instruction=prompt,
         )
 
     def summarize(self, text: str) -> str:
@@ -73,13 +86,18 @@ class GeminiSummarizer(BaseSummarizer):
             raise RuntimeError(f"Gemini API error: {e}") from e
 
 
-def create_summarizer(api_key: str, model_type: str = "gemini") -> BaseSummarizer:
+def create_summarizer(
+    api_key: str,
+    model_type: str = "gemini",
+    system_prompt: str | None = None,
+) -> BaseSummarizer:
     """
     Factory function to create a summarizer instance.
 
     Args:
         api_key: API key for the model service.
         model_type: Type of summarizer to create ("gemini").
+        system_prompt: Custom system prompt (uses SYSTEM_PROMPT env var or default if None).
 
     Returns:
         A summarizer instance.
@@ -88,6 +106,6 @@ def create_summarizer(api_key: str, model_type: str = "gemini") -> BaseSummarize
         ValueError: If the model type is not supported.
     """
     if model_type == "gemini":
-        return GeminiSummarizer(api_key)
+        return GeminiSummarizer(api_key, system_prompt=system_prompt)
     else:
         raise ValueError(f"Unsupported model type: {model_type}")
